@@ -35,19 +35,12 @@ To run the simulations and generate plots, follow these steps:
     using Pkg
     Pkg.instantiate()
     Pkg.activate(".")
-    Pkg.develop(path=".")
     ```
 
 4. **Load the main script in the REPL**:
 
     ```sh
     include("src/main.jl")
-    ```
-
-5. **Run Main**:
-
-    ```sh
-    main()
     ```
 
 
