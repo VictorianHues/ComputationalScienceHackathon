@@ -1,0 +1,15 @@
+name = "ComputationalScienceHackathon"
+uuid = "67e01207-00ee-4a54-83e0-6c40bb4e167f"
+license = "MIT"
+authors = ["Victoria Peterson <victoria.peterson@uva.student.nl>"]
+description = "Repo for the Deltares Computational Science Hackathon."
+version = "0.1.0"
+
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
