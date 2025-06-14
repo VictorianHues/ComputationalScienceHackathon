@@ -91,6 +91,8 @@ function swe_dae_residual!(residual, du, u, p, t)
     friction = cf * q[N] * abs(q[N]) / h[N]^2
     rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
 
+    # --- 
+
     return nothing
 end
 
@@ -121,7 +123,7 @@ function timeloop(params)
         plot(x, h, ylim=(9.5, 10.75), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
         plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
-    gif(anim, "h_evolution.gif", fps=10)
+    gif(anim, "challenge/gifs/h_evolution.gif", fps=10)
 
     return sol # return solution object
 end
@@ -138,7 +140,7 @@ function plot_solution(sol, params)
              title="Time = $(round(sol.t[i], digits=2)) s", legend=false)
         plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
-    gif(anim, "shallow_water.gif", fps=10)
+    gif(anim, "challenge/gifs/shallow_water.gif", fps=10)
 end
 
 # --- 6. Main script ---
