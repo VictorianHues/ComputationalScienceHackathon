@@ -31,7 +31,7 @@ end
 
 # --- 2. Initial condition ---
 function initial_conditions(params)
-    @unpack N, x, zb = params
+    @unpack N, x, zb, D = params
     xmax = maximum(x)
     h = 0.1 .* exp.(-100 .* ((x ./ xmax .- 0.5) .* xmax).^2) .- zb  # from Table I
     q = zeros(N)  # initially at rest
@@ -46,6 +46,10 @@ function swe_dae_residual!(residual, du, u, p, t)
     @unpack g, N, x, zb = p
     dx = x[2] - x[1]  # uniform grid assumed
     cf = 0.00232  # friction coefficient
+
+    # Parameters for GABC boundary condition
+    amp   = 0.05              # amplitude of incoming sinusoid [m/s]
+    omega = 2π * 1.0          # angular frequency [rad/s] (one cycle per second)
 
     # Extract h and q from state vector u
     h = @view u[1:N]
@@ -73,25 +77,46 @@ function swe_dae_residual!(residual, du, u, p, t)
     end
 
     # --- Boundary Conditions: Periodic ---
-    # i = 1 (left boundary)
-    ∂q∂x = (q[2] - q[N]) / (2*dx)
-    rh[1] = dhdt[1] + ∂q∂x
+    # # i = 1 (left boundary)
+    # ∂q∂x = (q[2] - q[N]) / (2*dx)
+    # rh[1] = dhdt[1] + ∂q∂x
 
-    dq2_over_h_dx = ((q[2]^2 / h[2]) - (q[N]^2 / h[N])) / (2*dx)
-    ∂ζ∂x = ((h[2] + zb[2]) - (h[N] + zb[N])) / (2*dx)
-    friction = cf * q[1] * abs(q[1]) / h[1]^2
-    rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * ∂ζ∂x + friction
+    # dq2_over_h_dx = ((q[2]^2 / h[2]) - (q[N]^2 / h[N])) / (2*dx)
+    # ∂ζ∂x = ((h[2] + zb[2]) - (h[N] + zb[N])) / (2*dx)
+    # friction = cf * q[1] * abs(q[1]) / h[1]^2
+    # rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * ∂ζ∂x + friction
 
-    # i = N (right boundary)
-    ∂q∂x = (q[1] - q[N-1]) / (2*dx)
-    rh[N] = dhdt[N] + ∂q∂x
+    # # i = N (right boundary)
+    # ∂q∂x = (q[1] - q[N-1]) / (2*dx)
+    # rh[N] = dhdt[N] + ∂q∂x
 
-    dq2_over_h_dx = ((q[1]^2 / h[1]) - (q[N-1]^2 / h[N-1])) / (2*dx)
-    ∂ζ∂x = ((h[1] + zb[1]) - (h[N-1] + zb[N-1])) / (2*dx)
-    friction = cf * q[N] * abs(q[N]) / h[N]^2
-    rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
+    # dq2_over_h_dx = ((q[1]^2 / h[1]) - (q[N-1]^2 / h[N-1])) / (2*dx)
+    # ∂ζ∂x = ((h[1] + zb[1]) - (h[N-1] + zb[N-1])) / (2*dx)
+    # friction = cf * q[N] * abs(q[N]) / h[N]^2
+    # rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
 
-    # --- 
+    # --- Boundary Conditions: GABC ---
+    h1, q1   = h[1],   q[1]
+    dh1, dq1 = dhdt[1], dqdt[1]
+    # characteristic variables:
+    C_plus  = (dq1 - (q1/h1)*dh1 + √(g*h1)*dh1) / h1    # incoming
+    C_minus = (dq1 - (q1/h1)*dh1 - √(g*h1)*dh1) / h1    # outgoing
+
+    # outgoing char must pass through (absorb):
+    residual[1]     = C_minus
+    # incoming char follows prescribed sinusoid:
+    residual[N+1] = C_plus - amp * sin(omega * t)
+
+    # --- GABC at right boundary (i=N) ---
+    hN, qN   = h[N],   q[N]
+    dhN, dqN = dhdt[N], dqdt[N]
+    C_plus_R  = (dqN - (qN/hN)*dhN + √(g*hN)*dhN) / hN   # outgoing to the right
+    C_minus_R = (dqN - (qN/hN)*dhN - √(g*hN)*dhN) / hN   # incoming from the right
+
+    # absorb outgoing:
+    residual[N]     = C_plus_R
+    # no incoming from downstream (set to zero):
+    residual[2N] = C_minus_R
 
     return nothing
 end
@@ -140,7 +165,7 @@ function plot_solution(sol, params)
              title="Time = $(round(sol.t[i], digits=2)) s", legend=false)
         plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
-    gif(anim, "challenge/gifs/shallow_water.gif", fps=10)
+    gif(anim, "challenge/gifs/shallow_water_cf_0.gif", fps=10)
 end
 
 # --- 6. Main script ---
