@@ -1,55 +1,40 @@
 using Plots
+using DifferentialEquations
+using NonlinearSolve
+using LinearAlgebra
+using UnPack
 
 using ComputationalScienceHackathon
 
-function solver()
-    println("Solver Source File")
-    value = 1
-    println("Value: ", value)
-    return value
-end
 
-function solve_jacobi(max_iter, n_steps, tolerance)
-    c_old = zeros(n_steps, 10)  # Initialize concentration array
-    c_new = zeros(n_steps, 10)  # New concentration array
+function swe_dae_residual!(residual, du, u, p, t)
+    @unpack g, N, x, D, zb, t_initial, t_final, cf = p
+    dx = x[2] - x[1]  # uniform grid assumed
 
-    display(heatmap(c_old, title="Initial Concentration", xlabel="Column", ylabel="Row"))
+    h = @view u[1:N]
+    q = @view u[N+1:2N]
 
-    # Perform Jacobi iterations
-    c_new, iteration, delta = jacobi(c_old, c_new, max_iter, n_steps, tolerance)
+    dhdt = @view du[1:N]
+    dqdt = @view du[N+1:2N]
 
-    display(heatmap(c_new, title="New Concentration", xlabel="Column", ylabel="Row"))
+    @views begin
+        for i in 1:N
+            # Periodic boundary indices
+            iL = mod1(i - 1, N)
+            iR = mod1(i + 1, N)
 
-    return c_new, iteration, delta
-end
+            # Mass conservation
+            dqdx = (q[iR] - q[iL]) / (2 * dx)
+            residual[i] = dhdt[i] + dqdx
 
-function jacobi(c_old, c_new, max_iter, n_steps, tolerance)
-    n_cols = size(c_old, 2)
-    delta = 0.0
-    iteration = 0
-    for iter in 1:max_iter
-        # Set boundary conditions
-        c_old[:, 1] .= 0.0  # Left boundary
-        c_old[:, end] .= 1.0  # Right boundary
+            # Momentum conservation
+            dq2h_dx = ((q[iR]^2 / h[iR]) - (q[iL]^2 / h[iL])) / (2 * dx)
+            dzetadx = ((h[iR] + zb[iR]) - (h[iL] + zb[iL])) / (2 * dx)
+            shear = -cf * q[i] * abs(q[i]) / h[i]^2
 
-        for i in 2:n_steps-1
-            for j in 2:n_cols-1
-                c_new[i, j] = 0.25 * (c_old[i+1, j] + c_old[i-1, j] + c_old[i, j+1] + c_old[i, j-1])
-            end
+            residual[N + i] = dqdt[i] + dq2h_dx + g * h[i] * dzetadx + shear
         end
-
-        # Enforce boundary conditions on c_new as well
-        c_new[:, 1] .= 0.0
-        c_new[:, end] .= 1.0
-
-        delta = maximum(abs.(c_new - c_old))
-        if delta < tolerance
-            println("Converged after $iter iterations")
-            iteration = iter
-            break
-        end
-        c_old .= c_new
-        iteration = iter
     end
-    return c_new, iteration, delta
+
+    return nothing
 end

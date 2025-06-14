@@ -20,7 +20,7 @@ To run the simulations and generate plots, follow these steps:
 1. Clone the repository:
 
     ```sh
-    gh repo clone VictorianHues/ComputationalScienceHackathon
+    gh repo clone VictorianHues/DeltaresHackathon2025
     ```
 
 2. Activate the Julia Environment in the root directory:
