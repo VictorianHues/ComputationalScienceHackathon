@@ -20,8 +20,8 @@ function make_parameters()
     xmax = maximum(x)            # maximum x in domain
     D = 10.0                     # domain depth
 
-    zb = -D .+ 0.4 .* sin.(2*π*5 .* x ./ xmax .* ((N - 1) / N))  # wavy bottom 
-    # zb = fill(-D, N) # flat bottom
+    # zb = -D .+ 0.4 .* sin.(2*π*5 .* x ./ xmax .* ((N - 1) / N))  # wavy bottom 
+    zb = fill(-D, N) # flat bottom
 
     tstart = 0.0
     tstop = 1.0
@@ -118,8 +118,8 @@ function timeloop(params)
     # --- 5. a Live Plots ---
     anim = @animate for i in 1:10:length(sol.t)
         h = sol.u[i][1:N]
-        plot(x, h, ylim=(-12, 12), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
-        plot!(x, zb, label="Bed floor zb", linestyle=:dash, color=:black)
+        plot(x, h, ylim=(9.5, 10.75), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
+        plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
     gif(anim, "h_evolution.gif", fps=10)
 
@@ -128,12 +128,14 @@ end
 
 # --- 5. b Plotting results ---
 function plot_solution(sol, params)
-    @unpack N, x = params
+    @unpack N, x, zb = params
     h_series = [sol.u[i][1:N] for i in 1:length(sol.t)]
 
+    # anim = @animate for i in 1:10:length(sol.t)
     anim = @animate for i in 1:10:length(sol.t)
-        plot(x, h_series[i], ylim=(0, 12), xlabel="x", ylabel="Water height h",
+        plot(x, h_series[i], ylim=(9.5, 10.5), xlabel="x", ylabel="Water height h",
              title="Time = $(round(sol.t[i], digits=2)) s", legend=false)
+        plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
     gif(anim, "shallow_water.gif", fps=10)
 end
