@@ -1,159 +1,161 @@
-using Plots
-using DifferentialEquations
-using NonlinearSolve
-using LinearAlgebra
-using UnPack
-using Sundials
+# Julia script to solve the 1D shallow water equations as a DAE problem
+using NonlinearSolve, LinearAlgebra, Parameters, Plots, Sundials
 
+# using ComputationalScienceHackathon
+
+# --- 1. Parameter setup ---
 function make_parameters()
-    # Gravitational constant
-    g = 9.81
+    g = 9.81                     # gravitational acceleration
+    N = 200                      # number of grid points
+    x = range(0.0, 5; length=N) |> collect  # domain points
+    xmax = maximum(x)            # maximum x in domain
+    D = 10.0                     # domain depth
 
-    # Number of grid points
-    nx = 200
+    zb = -D .+ 0.4 .* sin.(2*π*5 .* x ./ xmax .* ((N - 1) / N))  # wavy bottom 
+    # zb = fill(-D, N) # flat bottom
 
-    # Spatial domain
-    x_start = 0.0
-    x_stop = 5.0
-    x = range(x_start, x_stop; length=nx)
+    tstart = 0.0
+    tstop = 1.0
 
-    # Domain depth (flat bottom reference level)
-    D = 10.0
+    cf = 0.00232  # friction coefficient
 
-    # Bed level
-    zb = [-D + 0.4 * sin(2π * xi / x_stop * (nx - 1) / (nx * 5)) for xi in x]
-
-    # Initial and final time
-    t_initial = 0.0
-    t_final = 1.0
-
-    cf = 0.00232         # bed friction coefficient
-
-    return (; g, N=nx, x, D, zb, t_initial, t_final, cf)
+    return (; g, N, x, D, zb, tstart, tstop, cf)
 end
 
+# --- 2. Initial condition ---
 function initial_conditions(params)
-    x = params.x
-    zb = params.zb
+    @unpack N, x, zb = params
     xmax = maximum(x)
-    h = [0.1 * exp(-100 * ((xi / xmax - 0.5) * xmax)^2) - zbi for (xi, zbi) in zip(x, zb)]
-    q = zeros(length(x))
+    h = 0.1 .* exp.(-100 .* ((x ./ xmax .- 0.5) .* xmax).^2) .- zb  # from Table I
+    q = zeros(N) 
+
     return h, q
 end
 
 function swe_dae_residual!(residual, du, u, p, t)
     @unpack g, N, x, zb, cf = p
+    dx = x[2] - x[1]  # uniform grid assumed
+    #cf = 0.00232  # friction coefficient
 
-    dx = x[2] - x[1]  # uniform grid spacing
-
-    # Extract variables and their time derivatives
     h = @view u[1:N]
     q = @view u[N+1:2N]
 
     dhdt = @view du[1:N]
     dqdt = @view du[N+1:2N]
 
-    # Fill residuals
-    @views begin
-        for i in 1:N
-            # Periodic indexing
-            iL = mod1(i - 1, N)
-            iR = mod1(i + 1, N)
+    rh = @view residual[1:N]
+    rq = @view residual[N+1:2N]
 
-            # Mass conservation (continuity equation)
-            dqdx = (q[iR] - q[iL]) / (2dx)
-            residual[i] = dhdt[i] + dqdx
+    for i in 2:N-1
+        dqdx = (q[i+1] - q[i-1]) / (2*dx)
+        rh[i] = dhdt[i] + dqdx
 
-            # Momentum conservation
-            q2h_R = q[iR]^2 / h[iR]
-            q2h_L = q[iL]^2 / h[iL]
-            dq2h_dx = (q2h_R - q2h_L) / (2dx)
+        dq2_over_h_dx = ((q[i+1]^2 / h[i+1]) - (q[i-1]^2 / h[i-1])) / (2*dx)
+        dzdx = ((h[i+1] + zb[i+1]) - (h[i-1] + zb[i-1])) / (2*dx)
+        friction = cf * q[i] * abs(q[i]) / h[i]^2
 
-            zeta_R = h[iR] + zb[iR]
-            zeta_L = h[iL] + zb[iL]
-            dzeta_dx = (zeta_R - zeta_L) / (2dx)
-
-            friction = -cf * q[i] * abs(q[i]) / h[i]^2
-
-            residual[N + i] = dqdt[i] + dq2h_dx + (g * h[i] * dzeta_dx) + friction
-        end
+        rq[i] = dqdt[i] + dq2_over_h_dx + g * h[i] * dzdx + friction
     end
+
+    dqdx = (q[2] - q[N]) / (2*dx)
+    rh[1] = dhdt[1] + dqdx
+
+    dq2_over_h_dx = ((q[2]^2 / h[2]) - (q[N]^2 / h[N])) / (2*dx)
+    dzdx = ((h[2] + zb[2]) - (h[N] + zb[N])) / (2*dx)
+    friction = cf * q[1] * abs(q[1]) / h[1]^2
+    rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * dzdx + friction
+
+    dqdx = (q[1] - q[N-1]) / (2*dx)
+    rh[N] = dhdt[N] + dqdx
+
+    dq2_over_h_dx = ((q[1]^2 / h[1]) - (q[N-1]^2 / h[N-1])) / (2*dx)
+    dzdx = ((h[1] + zb[1]) - (h[N-1] + zb[N-1])) / (2*dx)
+    friction = cf * q[N] * abs(q[N]) / h[N]^2
+    rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * dzdx + friction
 
     return nothing
 end
 
 function timeloop(params)
-    @unpack N, t_initial, t_final = params
+    @unpack g, N, x, D, zb, tstart, tstop = params
 
-    # Set up initial state vectors
     h0, q0 = initial_conditions(params)
     u0 = vcat(h0, q0)
-    du0 = zeros(2N)  # Initial guess for du/dt
+    du0 = zeros(2N)
 
-    # Time span for simulation
-    tspan = (t_initial, t_final)
+    tspan = (tstart, tstop)
 
-    # Specify that all variables are differential (time-dependent)
+    # Specify differentiable variables as (true) -> all variables
     differential_vars = trues(2N)
 
-    # Define the DAE problem
     dae_prob = DAEProblem(
         swe_dae_residual!, du0, u0, tspan, params;
-        differential_vars = differential_vars
+        differential_vars=differential_vars
     )
+    sol = solve(dae_prob, IDA()) # solves the DAE problem using default settings
 
-    cb = DiscreteCallback(log_tolerance_condition, log_tolerance_affect!)
-
-    # Solve the problem using IDA solver (good for stiff DAE systems)
-    #sol = solve(dae_prob, IDA(), reltol=1e-8, abstol=1e-8, callback=cb)
-    sol = solve(dae_prob, IDA(), callback=cb)
-
-    return sol  # return the solution object
-end
-
-function animate_solution(sol, params; filename="swe_animation.gif")
-    N = params.N
-    x = params.x
-
-    anim = @gif for (i, t) in enumerate(sol.t)
+    # --- 5. a Live Plots ---
+    anim = @animate for i in 1:10:length(sol.t)
         h = sol.u[i][1:N]
-        plot(x, h, ylim=(0, 0.15),
-             xlabel="x", ylabel="Water Depth h",
-             title="t = $(round(t, digits=3)) s", lw=2)
-    end every 2  # Save every 2nd time step to control GIF size
+        plot(x, h, ylim=(9.5, 10.75), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
+        plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
+    end
+    gif(anim, "periodic.gif", fps=10)
 
-    # Save the animation silently
-    gif(anim, filename, fps = 20)
+    return sol # return solution object
 end
 
-# function main()
-#     # Step 1: Load simulation parameters
-#     parameters = make_parameters()
-#     N = parameters.N
+function compute_total_mass(sol, params)
+    @unpack N, x = params
+    dx = x[2] - x[1]
+    mass = [sum(sol.u[i][1:N]) * dx for i in eachindex(sol.t)]
+    return sol.t, mass
+end
 
-#     # Step 2: Generate initial conditions
-#     h0, q0 = initial_conditions(parameters)
-#     u0 = vcat(h0, q0)                  # State vector: [h; q]
-#     du0 = zeros(length(u0))            # Initial guess for time derivative
-#     tspan = (parameters.t_initial, parameters.t_final)
+function compute_total_energy(sol, params)
+    @unpack N, x, g = params
+    dx = x[2] - x[1]
 
-#     # Step 3: Define the DAE problem
-#     differential_vars = trues(length(u0))  # all variables are differential
-#     prob = DAEProblem(swe_dae_residual!, du0, u0, tspan, parameters; differential_vars=differential_vars)
+    energy = Float64[]
+    for u in sol.u
+        h = u[1:N]
+        q = u[N+1:2N]
+        E_kin = q.^2 ./ (2 .* h)
+        E_pot = 0.5 .* g .* h.^2
+        push!(energy, sum(E_kin .+ E_pot) * dx)
+    end
+    return sol.t, energy
+end
 
-#     # Step 4: Solve the problem using an implicit DAE solver
-#     sol = solve(prob, IDA())
+function plot_final_state(sol, params)
+    @unpack x, zb, N = params
+    h_final = sol.u[end][1:N]
+    q_final = sol.u[end][N+1:2N]
 
-#     # Step 5: Plot h(x) at final time
-#     h_final = sol[end][1:N]  # Extract water depth at final time
-#     x = parameters.x
-#     plot(x, h_final, xlabel="x", ylabel="Water Depth h", title="Final Water Depth h(x, t_final)", lw=2)
-# end
+    plt = plot(x, h_final, label="Water height h", lw=2)
+    plot!(plt, x, zb .+ 20, label="Bed elevation", linestyle=:dash)
+    plot!(plt, xlabel="x", ylabel="h", title="Final State at t = $(round(sol.t[end], digits=2)) s")
+    savefig(plt, "final_state.png")
+end
+
+function plot_conservation(sol, params)
+    t1, mass = compute_total_mass(sol, params)
+    t2, energy = compute_total_energy(sol, params)
+
+    p1 = plot(t1, mass, lw=2, xlabel="Time", ylabel="Total Mass", title="Mass Conservation")
+    p2 = plot(t2, energy, lw=2, xlabel="Time", ylabel="Total Energy", title="Energy Conservation")
+    plt = plot(p1, p2, layout=(1,2), size=(900,400))
+    savefig(plt, "conservation.png")
+end
 
 function main()
     params = make_parameters()
-    sol = timeloop(params)
-    animate_solution(sol, params)  # Saves swe_animation.gif in current directory
+    
+    solution = timeloop(params) 
+
+    plot_final_state(solution, params)
+    plot_conservation(solution, params)
+    #plot_solution(solution, params)
 end
 
 main()
