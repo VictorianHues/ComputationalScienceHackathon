@@ -1,39 +1,32 @@
+using Plots
+using DifferentialEquations
+using NonlinearSolve
 using LinearAlgebra
+using UnPack
 
 using ComputationalScienceHackathon
 
-function model()
-    println("Model Source File")
 
-end
+function timeloop(params)
+    # Unpack parameters 
 
-# Function to solve 1D steady groundwater flow
-function solve_groundwater_1d(K::Float64, h0::Float64, hL::Float64, L::Float64, N::Int)
-    Δx = L / (N + 1)
-    x = range(0, L, length=N+2)
+    # set up initial conditions
+    h0, q0 = initial_conditions(params)
+    u0 = vcat(h0, q0)
+    du0 = zeros(2N)  # Initial guess for du/dt
 
-    # Construct system: A * h = b
-    A = zeros(N, N)
-    b = zeros(N)
+    tspan = (tstart, tstop) # defines the start and end times for the simulation
 
-    for i in 1:N
-        A[i, i] = -2
-        if i > 1
-            A[i, i-1] = 1
-        end
-        if i < N
-            A[i, i+1] = 1
-        end
-    end
+    # Specify differentiable variables as (true) -> all variables
+    differential_vars = trues(2N)
 
-    # Incorporate Dirichlet BCs into b
-    b[1] -= h0
-    b[end] -= hL
+    dae_prob = DAEProblem(
+        swe_dae_residual!, du0, u0, tspan, params;
+        differential_vars=differential_vars
+    )
+    sol = solve(dae_prob, IDA(), reltol=1e-8, abstol=1e-8) # solves the DAE problem using default settings
 
-    # Solve system
-    h_internal = A \ b
+    # --- 5. a Live Plots ---
 
-    # Combine full solution
-    h = vcat(h0, h_internal, hL)
-    return x, h
+    return sol # return solution object
 end
