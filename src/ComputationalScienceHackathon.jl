@@ -13,6 +13,6 @@ include("plotting.jl")
 # Optionally, export functions or types you want users to access directly
 # export my_function, MyType
 
-export swe_dae_residual
+export swe_dae_residual!, swe_dae_residual, timeloop
 
 end

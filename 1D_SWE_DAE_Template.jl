@@ -126,6 +126,7 @@ function timeloop(params)
     return sol # return solution object
 end
 
+
 # --- 5. b Plotting results ---
 function plot_solution(sol, params)
     @unpack N, x, zb = params
