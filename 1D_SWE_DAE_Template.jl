@@ -11,6 +11,23 @@ using NonlinearSolve, LinearAlgebra, Parameters, Plots, Sundials
 # 5. Plot the results.
 # 6. Function calls to start the simulation.
 
+#Boundry option choice 
+const CONFIG = Dict{Symbol, Any}()
+
+function set_boundary!(type::Symbol; q_left=0.1, h_right=10.0, robin_alpha=1.0, robin_target=10.0)
+    CONFIG[:boundary_type] = type
+    if type == :dirichlet_neumann
+        CONFIG[:q_left] = q_left
+        CONFIG[:robin_alpha] = robin_alpha
+        CONFIG[:robin_target] = robin_target
+    elseif type == :periodic
+        # Optional: clean up any previous values
+        pop!(CONFIG, :q_left, nothing)
+        pop!(CONFIG, :h_right, nothing)
+    else
+        error("Unsupported boundary type: $type")
+    end
+end
 
 # --- 1. Parameter setup ---
 function make_parameters()
@@ -72,28 +89,54 @@ function swe_dae_residual!(residual, du, u, p, t)
         rq[i] = dqdt[i] + dq2_over_h_dx + g * h[i] * ∂ζ∂x + friction
     end
 
-    # --- Boundary Conditions: Periodic ---
-    # i = 1 (left boundary)
-    ∂q∂x = (q[2] - q[N]) / (2*dx)
-    rh[1] = dhdt[1] + ∂q∂x
+    # --- Boundary Conditions: Periodic or Neumann/Dirichlet---
+    
+    boundary_type = CONFIG[:boundary_type]
 
-    dq2_over_h_dx = ((q[2]^2 / h[2]) - (q[N]^2 / h[N])) / (2*dx)
-    ∂ζ∂x = ((h[2] + zb[2]) - (h[N] + zb[N])) / (2*dx)
-    friction = cf * q[1] * abs(q[1]) / h[1]^2
-    rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * ∂ζ∂x + friction
+    if boundary_type == :periodic
+        # i = 1 (left boundary)
+        ∂q∂x = (q[2] - q[N]) / (2*dx)
+        rh[1] = dhdt[1] + ∂q∂x
 
-    # i = N (right boundary)
-    ∂q∂x = (q[1] - q[N-1]) / (2*dx)
-    rh[N] = dhdt[N] + ∂q∂x
+        dq2_over_h_dx = ((q[2]^2 / h[2]) - (q[N]^2 / h[N])) / (2*dx)
+        ∂ζ∂x = ((h[2] + zb[2]) - (h[N] + zb[N])) / (2*dx)
+        friction = cf * q[1] * abs(q[1]) / h[1]^2
+        rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * ∂ζ∂x + friction
 
-    dq2_over_h_dx = ((q[1]^2 / h[1]) - (q[N-1]^2 / h[N-1])) / (2*dx)
-    ∂ζ∂x = ((h[1] + zb[1]) - (h[N-1] + zb[N-1])) / (2*dx)
-    friction = cf * q[N] * abs(q[N]) / h[N]^2
-    rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
+        # i = N (right boundary)
+        ∂q∂x = (q[1] - q[N-1]) / (2*dx)
+        rh[N] = dhdt[N] + ∂q∂x
 
-    # --- 
+        dq2_over_h_dx = ((q[1]^2 / h[1]) - (q[N-1]^2 / h[N-1])) / (2*dx)
+        ∂ζ∂x = ((h[1] + zb[1]) - (h[N-1] + zb[N-1])) / (2*dx)
+        friction = cf * q[N] * abs(q[N]) / h[N]^2
+        rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
 
-    return nothing
+    elseif boundary_type == :dirichlet_neumann
+        q_left = CONFIG[:q_left]
+        α = CONFIG[:robin_alpha]
+        b = CONFIG[:robin_target]
+
+        # --- Left boundary ---
+        ∂q∂x = (q[2] - q_left) / (2dx)
+        rh[1] = dhdt[1] + ∂q∂x
+        dq2_over_h_dx = ((q[2]^2 / h[2]) - (q_left^2 / h[1])) / (2dx)
+        ∂ζ∂x = ((h[2] + zb[2]) - (h[1] + zb[1])) / dx
+        friction = cf * q[1] * abs(q[1]) / h[1]^2
+        rq[1] = dqdt[1] + dq2_over_h_dx + g * h[1] * ∂ζ∂x + friction
+
+        # --- Right boundary ---
+        rh[N] = h[N] + α * (h[N] - h[N-1]) / dx - b
+
+        # Use one-sided spatial diff for q at right boundary
+        ∂q∂x = (q[N] - q[N-1]) / dx
+        dq2_over_h_dx = ((q[N]^2 / h[N]) - (q[N-1]^2 / h[N-1])) / dx
+        ∂ζ∂x = ((h[N] + zb[N]) - (h[N-1] + zb[N-1])) / dx
+        friction = cf * q[N] * abs(q[N]) / h[N]^2
+        rq[N] = dqdt[N] + dq2_over_h_dx + g * h[N] * ∂ζ∂x + friction
+    else
+        error("Unsupported boundary type: $boundary_type")
+    end
 end
 
 # --- 4. Time integration ---
@@ -140,14 +183,15 @@ function plot_solution(sol, params)
              title="Time = $(round(sol.t[i], digits=2)) s", legend=false)
         plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
+        
     gif(anim, "challenge/gifs/shallow_water.gif", fps=10)
 end
 
 # --- 6. Main script ---
+#choose the boundry
+set_boundary!(:dirichlet_neumann, q_left=0.1, h_right=10.0, robin_alpha=1.0, robin_target=10.0)
 # Set up parameters
 params = make_parameters()
 # Call the time loop function
 solution = timeloop(params) 
 plot_solution(solution, params)
-
-
