@@ -1,14 +1,12 @@
-using Plots
-using DifferentialEquations
-using NonlinearSolve
-using LinearAlgebra
-using UnPack
+using NonlinearSolve, LinearAlgebra, Parameters, Plots, Sundials
 
 using ComputationalScienceHackathon
 
 
+# --- 4. Time integration ---
 function timeloop(params)
-    # Unpack parameters 
+    # Unpack parameters
+    @unpack g, N, x, D, zb, tstart, tstop = params
 
     # set up initial conditions
     h0, q0 = initial_conditions(params)
@@ -27,6 +25,12 @@ function timeloop(params)
     sol = solve(dae_prob, IDA(), reltol=1e-8, abstol=1e-8) # solves the DAE problem using default settings
 
     # --- 5. a Live Plots ---
+    anim = @animate for i in 1:10:length(sol.t)
+        h = sol.u[i][1:N]
+        plot(x, h, ylim=(-12, 12), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
+        plot!(x, zb, label="Bed floor zb", linestyle=:dash, color=:black)
+    end
+    gif(anim, "h_evolution.gif", fps=10)
 
     return sol # return solution object
 end
