@@ -22,15 +22,16 @@ function timeloop(params)
         swe_dae_residual!, du0, u0, tspan, params;
         differential_vars=differential_vars
     )
-    sol = solve(dae_prob, IDA(), reltol=1e-8, abstol=1e-8) # solves the DAE problem using default settings
+    #sol = solve(dae_prob, IDA(), reltol=1e-8, abstol=1e-8) # solves the DAE problem using default settings
+    sol = solve(dae_prob, FBDF(), reltol=1e-8, abstol=1e-8)
 
     # --- 5. a Live Plots ---
     anim = @animate for i in 1:10:length(sol.t)
         h = sol.u[i][1:N]
-        plot(x, h, ylim=(-12, 12), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
-        plot!(x, zb, label="Bed floor zb", linestyle=:dash, color=:black)
+        plot(x, h, ylim=(9.5, 10.75), xlabel="x", ylabel="Water height h", title="Time = $(round(sol.t[i], digits=2)) s")
+        plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
     end
-    gif(anim, "h_evolution.gif", fps=10)
+    gif(anim, plot_name, fps=10)
 
     return sol # return solution object
 end
