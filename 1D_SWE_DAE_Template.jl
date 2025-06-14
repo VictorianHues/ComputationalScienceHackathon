@@ -20,8 +20,8 @@ function make_parameters()
     xmax = maximum(x)            # maximum x in domain
     D = 10.0                     # domain depth
 
-    # zb = -D .+ 0.4 .* sin.(2*π*5 .* x ./ xmax .* ((N - 1) / N))  # wavy bottom 
-    zb = fill(-D, N) # flat bottom
+    zb = -D .+ 0.4 .* sin.(2*π*5 .* x ./ xmax .* ((N - 1) / N))  # wavy bottom 
+    # zb = fill(-D, N) # flat bottom
 
     tstart = 0.0
     tstop = 1.0
