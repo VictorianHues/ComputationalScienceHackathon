@@ -2,6 +2,8 @@
 
 Repo for the Deltares Computational Science Hackathon (2025), hosted by [Computational Science NL](https://www.linkedin.com/company/computationalsciencenl) and featuring a 1D shallow water modeling challenge from [Deltares](https://www.deltares.nl/).
 
+⚠️ _Note: This code was developed under time constraints typical of a hackathon setting. While functional, it is not fully refactored or optimized. See the `src/` directory for main scripts and solver logic._
+
 ![Base Conditions](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_wavy_bottom.gif)
 ![peak_bottom_peak_water](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_peak_bottom.gif)
 
@@ -26,8 +28,6 @@ The solver is implemented in **Julia** using the **SciML ecosystem**, particular
 - Implicit time integration via `IDA()`
 - Support for periodic boundary conditions
 - Animated visualization of wave evolution
-
-⚠️ _Note: This code was developed under time constraints typical of a hackathon setting. While functional, it is not fully refactored or optimized. See the `src/` directory for main scripts and solver logic._
 
 ---
 
