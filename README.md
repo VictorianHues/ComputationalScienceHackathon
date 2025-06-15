@@ -1,6 +1,9 @@
 # ComputationalScienceHackathon
 
-Repo for the Deltares Computational Science Hackathon
+Repo for the Deltares Computational Science Hackathon (2025), hosted by [Computational Science NL](https://www.linkedin.com/company/computationalsciencenl) and featuring a 1D shallow water modeling challenge from [Deltares](https://www.deltares.nl/).
+
+![Base Conditions](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_wavy_bottom.gif)
+![peak_bottom_peak_water](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_peak_bottom.gif)
 
 ## Table of Contents
 
@@ -10,8 +13,23 @@ Repo for the Deltares Computational Science Hackathon
 4. [Contributing](#contributing)
 5. [License](#license)
 
+---
+
 ## Overview
 
+This repository contains the code developed during the Deltares Computational Science Hackathon 2025. The challenge focused on simulating the **1D shallow water equations** over variable topography using **implicit time-stepping**.
+
+The solver is implemented in **Julia** using the **SciML ecosystem**, particularly [`DAEProblem`](https://docs.sciml.ai/DiffEqDocs/stable/types/dae_types/) and the `IDA()` solver from Sundials. The core model includes:
+
+- Central finite difference spatial discretization
+- DAE formulation of the shallow water equations
+- Implicit time integration via `IDA()`
+- Support for periodic boundary conditions
+- Animated visualization of wave evolution
+
+⚠️ _Note: This code was developed under time constraints typical of a hackathon setting. While functional, it is not fully refactored or optimized. See the `src/` directory for main scripts and solver logic._
+
+---
 
 ## Usage and Installation
 
@@ -23,45 +41,49 @@ To run the simulations and generate plots, follow these steps:
     gh repo clone VictorianHues/DeltaresHackathon2025
     ```
 
-2. Activate the Julia Environment in the root directory:
+2. Activate the Julia environment in the root directory:
 
     ```sh
     julia --project=.
     ```
 
-3. **Install Dependencies**: Ensure you have all the required dependencies installed. You can install them from the Julia REPL:
+3. **Install Dependencies**:
 
-    ```sh
+    From the Julia REPL:
+
+    ```julia
     using Pkg
     Pkg.instantiate()
     Pkg.activate(".")
     ```
 
-4. **Load the main script in the REPL**:
+4. **Run the main script**: This will run the solver and generate an animated `.gif` of the wave surface evolution for a wide range of intial conditions and parameters. Remove and add portions of the `main()` function to select specific models.
 
-    ```sh
+    ```julia
     include("src/main.jl")
     ```
 
-8. **Run Unit Tests**: Not implemented
-
-    ```sh
-    using Pkg
-    Pkg.test()
-    ```
-
+---
 
 ## Implementation
 
-
-
-
 ### Source Code
 
+All implementation is located in the `src/` folder, including:
 
+- `main.jl` - Main script to set parameters and initial conditions
+- `solver.jl` - DAE residual function (`swe_dae_residual!`).
+- `model.jl` - Timeloop function to model the solution over a specific timespan (`timeloop`)
+- `plotting.jl` - Plotting functions used for animation and data analysis
 
-### Scripts
+### Features Implemented
 
+- ✅ DAE formulation using `DAEProblem` with full residual specification
+- ✅ Periodic and Dirichlet boundary conditions
+- ✅ Initial conditions with Gaussian wave pulse and optional uniform flow
+- ✅ Animated visualization of water surface
+
+---
 
 ## Contributing
 
@@ -72,6 +94,8 @@ If you would like to contribute to this project, please follow these steps:
 3. Make your changes and commit them with clear and concise messages.
 4. Push your changes to your forked repository.
 5. Create a pull request to the main repository.
+
+---
 
 ## License
 
