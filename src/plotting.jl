@@ -1,14 +1,19 @@
 using ComputationalScienceHackathon
 
-function plot_solution(sol, params)
+function plot_solution_animation(sol, params, file_name)
     @unpack N, x, zb = params
-    h_series = [sol.u[i][1:N] for i in 1:length(sol.t)]
 
-    # anim = @animate for i in 1:10:length(sol.t)
-    anim = @animate for i in 1:10:length(sol.t)
-        plot(x, h_series[i], ylim=(9.5, 10.5), xlabel="x", ylabel="Water height h",
-             title="Time = $(round(sol.t[i], digits=2)) s", legend=false)
-        plot!(x, zb .+ 20, label="Bed floor zb", linestyle=:dash, color=:black)
+    anim = @animate for i in 1:2:length(sol.t)
+        h = sol.u[i][1:N]
+        zeta = h .+ zb 
+        plot(x, zeta, ylim=(minimum(zb), 2.0),
+            xlabel="x", ylabel="Water surface elevation ζ = h + zb",
+            title="Time = $(round(sol.t[i], digits=2)) s", lw=2, label="Water Surface", legend=:bottomright)
+
+        plot!(x, zb, label="Bed floor zb", linestyle=:dash, color=:black, legend=:bottomright)
     end
-    gif(anim, "shallow_water.gif", fps=10)
+
+    file_path = joinpath("gifs", file_name)
+
+    gif(anim, file_path, fps=15)
 end
