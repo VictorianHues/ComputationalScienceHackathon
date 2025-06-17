@@ -4,8 +4,22 @@ Repo for the Deltares Computational Science Hackathon (2025), hosted by [Computa
 
 ⚠️ _Note: This code was developed under time constraints typical of a hackathon setting. While functional, it is not fully refactored or optimized. See the `src/` directory for main scripts and solver logic._
 
-![Base Conditions](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_wavy_bottom.gif)
-![peak_bottom_peak_water](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_single_peak_peak_bottom.gif)
+## Simulations
+### Periodic Boundaries
+| Peak Water, Wavy Bottom without Discharge | Peak Water, Wavy Bottom with Horizontal Discharge |
+|------------------------|----------------------------------|
+| ![peak_water_wavy_bottom](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_peak_water_wavy_bottom.gif?raw=true) | ![peak_water_wavy_bottom_discharge](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_peak_water_wavy_bottom_discharge.gif?raw=true) |
+
+
+| Peak Water, Peak Bottom without Discharge | Peak Water, Peak Bottom with Horizontal Discharge |
+|------------------------|----------------------------------|
+| ![swe_peak_water_peak_bottom](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_peak_water_peak_bottom.gif?raw=true) | ![peak_water_wavy_bottom_discharge](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_peak_water_peak_bottom_discharge.gif?raw=true) |
+
+| Flat Water, Inclined Bottom with Horizontal Discharge | Flat Water, Wavy Bottom with Horizontal Discharge |
+|------------------------|----------------------------------|
+| ![swe_flat_water_incline_bottom_discharge](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_flat_water_incline_bottom_discharge.gif?raw=true) | ![swe_flat_water_wavy_bottom_discharge](https://github.com/VictorianHues/DeltaresHackathon2025/blob/main/gifs/swe_flat_water_wavy_bottom_discharge.gif?raw=true) |
+
+
 
 ## Table of Contents
 
